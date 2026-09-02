@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Highsol architectural H mark</title>
+  <path fill="#0B4655" d="M7 25 32 11l25 14h-9L32 17 16 25H7Z"/>
+  <path fill="#171B1D" d="M17 27h7v23h-7zM40 27h7v23h-7z"/>
+  <path fill="none" stroke="#0B4655" stroke-width="3" stroke-linecap="round" d="M10 42c14-6 30-6 44 0"/>
+</svg>
