@@ -11,6 +11,7 @@ export type ProductConcept = {
   name: string;
   category: Exclude<Category, "all">;
   categoryLabel: string;
+  configureModel: string;
   images: ProductImage[];
   context: string;
   finish: string;
@@ -22,6 +23,7 @@ export const products: ProductConcept[] = [
     name: "Scalloped Center Pole",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/scalloped-center-pole/01-three-quarter.jpg",
@@ -47,6 +49,7 @@ export const products: ProductConcept[] = [
     name: "Square Cantilever",
     category: "cantilever",
     categoryLabel: "Cantilever",
+    configureModel: "HS-CL-30SQ",
     images: [
       {
         src: "/images/packshots/square-cantilever/01-three-quarter.jpg",
@@ -72,6 +75,7 @@ export const products: ProductConcept[] = [
     name: "Dual Canopy System",
     category: "large-format",
     categoryLabel: "Large format",
+    configureModel: "HS-LF-CUSTOM",
     images: [
       {
         src: "/images/packshots/dual-canopy-cantilever/01-three-quarter.jpg",
@@ -97,6 +101,7 @@ export const products: ProductConcept[] = [
     name: "Salmon Scallop",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/source-photo-colorways/salmon-white-scallop.jpg",
@@ -112,6 +117,7 @@ export const products: ProductConcept[] = [
     name: "Ivory Green Scallop",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/source-photo-colorways/ivory-green-scallop.jpg",
@@ -127,6 +133,7 @@ export const products: ProductConcept[] = [
     name: "Powder Blue Scallop",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/source-photo-colorways/powder-blue-white-scallop.jpg",
@@ -142,6 +149,7 @@ export const products: ProductConcept[] = [
     name: "Ivory Coral Scallop",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/source-photo-colorways/ivory-coral-scallop.jpg",
@@ -157,6 +165,7 @@ export const products: ProductConcept[] = [
     name: "Floral Dome",
     category: "center-pole",
     categoryLabel: "Center pole",
+    configureModel: "HS-CD-30SQ",
     images: [
       {
         src: "/images/packshots/source-photo-colorways/floral-dome-green-trim.jpg",

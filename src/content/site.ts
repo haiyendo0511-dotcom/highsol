@@ -7,8 +7,10 @@ export const site = {
   nav: [
     { label: "Home", href: "/" },
     { label: "Products", href: "/parasols" },
+    { label: "Customize", href: "/customize" },
     { label: "Manufacturing", href: "/manufacturing-vietnam" },
     { label: "Resources", href: "/resources" },
+    { label: "Blog", href: "/blog" },
   ],
   collections: [
     {

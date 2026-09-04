@@ -94,13 +94,18 @@ export function ProductCatalogue() {
                 <h2>{product.name}</h2>
                 <p>{product.context}</p>
               </div>
-              <button
-                type="button"
-                onClick={(event) => openPreview(product, event.currentTarget)}
-                aria-label={"View " + product.name + " details"}
-              >
-                <ArrowUpRight size={19} weight="bold" />
-              </button>
+              <div className="catalogue-card-actions">
+                <Link href={`/customize?model=${product.configureModel}`}>
+                  Customize
+                </Link>
+                <button
+                  type="button"
+                  onClick={(event) => openPreview(product, event.currentTarget)}
+                  aria-label={"View " + product.name + " details"}
+                >
+                  <ArrowUpRight size={19} weight="bold" />
+                </button>
+              </div>
             </div>
           </article>
         ))}
@@ -167,8 +172,8 @@ export function ProductCatalogue() {
                 Packshot shown for design review. Dimensions, engineering, fabrics, finishes,
                 and commercial availability are confirmed against the project brief.
               </p>
-              <Link className="button button-primary" href="/#contact">
-                Discuss this product <ArrowUpRight size={18} weight="bold" />
+              <Link className="button button-primary" href={`/customize?model=${selected.configureModel}`}>
+                Customize this model <ArrowUpRight size={18} weight="bold" />
               </Link>
             </div>
           </div>

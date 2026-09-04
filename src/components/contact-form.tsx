@@ -3,9 +3,21 @@
 import { ArrowUpRight } from "@phosphor-icons/react";
 import { FormEvent, useState } from "react";
 
+export type InquiryConfiguration = {
+  code: string;
+  summary: string;
+  fields: Record<string, string>;
+};
+
+type ContactFormProps = {
+  configuration?: InquiryConfiguration;
+  onSuccess?: () => void;
+  onError?: () => void;
+};
+
 type FormState = "idle" | "submitting" | "success" | "error";
 
-export function ContactForm() {
+export function ContactForm({ configuration, onSuccess, onError }: ContactFormProps = {}) {
   const [state, setState] = useState<FormState>("idle");
   const formId = process.env.NEXT_PUBLIC_FORMSPREE_ID;
 
@@ -17,6 +29,7 @@ export function ContactForm() {
 
     if (!formId) {
       setState("success");
+      onSuccess?.();
       return;
     }
 
@@ -30,13 +43,23 @@ export function ContactForm() {
       if (!response.ok) throw new Error("Delivery failed");
       form.reset();
       setState("success");
+      onSuccess?.();
     } catch {
       setState("error");
+      onError?.();
     }
   }
 
   return (
-    <form className="rfq-form" onSubmit={submit} noValidate>
+    <form className="rfq-form" onSubmit={submit} noValidate aria-busy={state === "submitting"}>
+      {configuration ? (
+        <>
+          <input type="hidden" name="configurationSummary" value={configuration.summary} />
+          {Object.entries(configuration.fields).map(([name, value]) => (
+            <input key={name} type="hidden" name={name} value={value} />
+          ))}
+        </>
+      ) : null}
       <input className="honeypot" type="text" name="_gotcha" tabIndex={-1} autoComplete="off" />
       <div className="form-grid">
         <Field label="Name" name="name" autoComplete="name" required />
@@ -66,7 +89,12 @@ export function ContactForm() {
             <option>Other</option>
           </select>
         </label>
-        <Field label="Estimated quantity" name="quantity" inputMode="numeric" />
+        <Field
+          label="Estimated quantity"
+          name="quantity"
+          inputMode="numeric"
+          defaultValue={configuration?.fields.configuredQuantity}
+        />
         <Field label="Target delivery period" name="timeline" placeholder="Example: Q2 2027" />
         <label className="field field-wide">
           <span>Project message</span>

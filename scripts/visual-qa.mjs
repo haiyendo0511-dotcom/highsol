@@ -6,6 +6,7 @@ const outputDir = "artifacts/live-redesign-qa";
 const routes = [
   { name: "home", path: "/" },
   { name: "products", path: "/parasols" },
+  { name: "customize", path: "/customize" },
   { name: "manufacturing", path: "/manufacturing-vietnam" },
   { name: "resources", path: "/resources" },
 ];
@@ -67,6 +68,66 @@ for (const viewport of viewports) {
       window.scrollTo(0, 0);
       await new Promise((resolve) => setTimeout(resolve, 900));
     });
+
+    if (route.name === "customize") {
+      await page.evaluate(async () => {
+        document.querySelectorAll(".customizer-group").forEach((group) => {
+          group.open = true;
+        });
+        const cards = Array.from(
+          document.querySelectorAll(".customizer-model-option, .customizer-choice, .customizer-toggle"),
+        );
+        for (const card of cards) {
+          card.scrollIntoView({ block: "center" });
+          await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+        window.scrollTo(0, 0);
+      });
+      await page.waitForTimeout(1500);
+      await page.waitForFunction(
+        () =>
+          Array.from(
+            document.querySelectorAll(
+              ".customizer-model-option img, .customizer-choice img, .customizer-toggle img",
+            ),
+          ).every((image) => image.complete && image.naturalWidth > 0),
+        undefined,
+        { timeout: 20000 },
+      );
+      const cardImageState = await page.evaluate(() => {
+        const selectors = {
+          models: ".customizer-model-option",
+          choices: ".customizer-choice",
+          service: ".customizer-toggle",
+        };
+        const cards = Object.values(selectors).flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+        const images = cards.map((card) => card.querySelector("img"));
+        return {
+          models: document.querySelectorAll(selectors.models).length,
+          choices: document.querySelectorAll(selectors.choices).length,
+          service: document.querySelectorAll(selectors.service).length,
+          total: cards.length,
+          missingImages: images.filter((image) => !image).length,
+          missingAlt: images.filter((image) => image && !image.getAttribute("alt")?.trim()).length,
+          brokenImages: images.filter((image) => image && (!image.complete || image.naturalWidth === 0)).length,
+        };
+      });
+      if (
+        cardImageState.models !== 8 ||
+        cardImageState.choices !== 33 ||
+        cardImageState.service !== 5 ||
+        cardImageState.total !== 46
+      ) {
+        failures.push(
+          `customize ${viewport.name} image-card counts were ${cardImageState.models}/${cardImageState.choices}/${cardImageState.service} instead of 8/33/5`,
+        );
+      }
+      if (cardImageState.missingImages || cardImageState.missingAlt || cardImageState.brokenImages) {
+        failures.push(
+          `customize ${viewport.name} image coverage failed: ${cardImageState.missingImages} missing, ${cardImageState.missingAlt} without alt text, ${cardImageState.brokenImages} broken`,
+        );
+      }
+    }
     await page.screenshot({ path: outputDir + "/" + route.name + "-" + viewport.name + ".png", fullPage: true });
   }
 
@@ -85,6 +146,42 @@ for (const viewport of viewports) {
     await page.locator(".catalogue-modal").waitFor({ state: "detached" });
     const focusRestored = await previewTrigger.evaluate((element) => document.activeElement === element);
     if (!focusRestored) failures.push("Catalogue modal did not return focus to its trigger");
+
+    await page.goto(baseUrl + "/customize?model=HS-CL-30SQ", { waitUntil: "domcontentloaded" });
+    await page.locator('input[name="model"][value="HS-CL-30SQ"]').waitFor({ state: "attached" });
+    await page.waitForFunction(() => document.querySelector('input[name="model"][value="HS-CL-30SQ"]')?.checked);
+    const initialCode = await page.locator(".customizer-code-block strong").textContent();
+    if (!initialCode?.startsWith("HS-CL-30SQ")) failures.push("Configurator did not load the catalogue model from the query string");
+
+    await page.locator('label:has(input[name="canopyColor"][value="forest-green"])').click();
+    const changedCode = await page.locator(".customizer-code-block strong").textContent();
+    if (changedCode === initialCode || !changedCode?.includes("FG")) {
+      failures.push("Configurator code did not update after a finish selection");
+    }
+
+    await page.locator('label:has(input[name="model"][value="HS-LF-CUSTOM"])').click();
+    const compatibilityState = await page.evaluate(() => ({
+      largeFormatChecked: document.querySelector('input[name="model"][value="HS-LF-CUSTOM"]')?.checked,
+      pvcChecked: document.querySelector('input[name="fabric"][value="pvc-membrane"]')?.checked,
+      scallopDisabled: document.querySelector('input[name="edge"][value="scalloped"]')?.disabled,
+      engineeringVisible: Boolean(document.querySelector(".customizer-engineering-note")),
+    }));
+    if (!compatibilityState.largeFormatChecked || !compatibilityState.pvcChecked || !compatibilityState.scallopDisabled) {
+      failures.push("Configurator did not reconcile incompatible large-format choices");
+    }
+    if (!compatibilityState.engineeringVisible) failures.push("Large-format selection did not show the engineering review gate");
+
+    await page.getByRole("button", { name: "Request project review" }).click();
+    const reviewFocused = await page.evaluate(() => document.activeElement?.classList.contains("customizer-review"));
+    if (!reviewFocused) failures.push("Configurator review action did not focus the summary");
+    const payloadState = await page.evaluate(() => ({
+      visibleCode: document.querySelector(".customizer-review-code strong")?.textContent,
+      formCode: document.querySelector('input[name="configurationCode"]')?.value,
+      summary: document.querySelector('input[name="configurationSummary"]')?.value,
+    }));
+    if (payloadState.visibleCode !== payloadState.formCode || !payloadState.summary?.includes("Large Format Project")) {
+      failures.push("Configurator RFQ payload does not match the visible summary");
+    }
 
     await page.goto(baseUrl + "/oem-odm", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(500);
@@ -122,4 +219,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("Visual QA passed for 4 routes at desktop and mobile sizes.");
+console.log("Visual QA passed for 5 routes at desktop and mobile sizes.");
