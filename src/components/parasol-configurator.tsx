@@ -97,7 +97,7 @@ export function ParasolConfigurator() {
   };
 
   const selectOption = (group: ConfigOptionGroup, option: ConfigOption) => {
-    if (!isOptionCompatible(option, model.family)) return;
+    if (!isOptionCompatible(option, model.family, model.id)) return;
     markStarted();
     setConfiguration((current) => ({ ...current, [group]: option.id }));
     setAnnouncement(`${option.label} selected for ${groupMeta.find((item) => item.group === group)?.title.toLowerCase()}.`);
@@ -167,7 +167,7 @@ export function ParasolConfigurator() {
                 exit={reduceMotion ? undefined : { opacity: 0, scale: 1.01 }}
                 transition={{ duration: reduceMotion ? 0 : 0.28, ease: [0.16, 1, 0.3, 1] }}
               >
-                <Image src={preview.src} alt={preview.alt} fill priority sizes="(max-width: 767px) 100vw, 48vw" />
+                <Image src={preview.src} alt={preview.alt} fill preload sizes="(max-width: 767px) 100vw, 48vw" />
               </motion.div>
             </AnimatePresence>
             <div className="customizer-preview-swatches" aria-label="Selected visible finishes">
@@ -194,7 +194,7 @@ export function ParasolConfigurator() {
             </dl>
             <div className="customizer-preview-note" aria-live="polite">
               <Info size={18} weight="bold" aria-hidden="true" />
-              <p>{preview.isExact ? `${preview.viewLabel}. Final product details remain subject to project confirmation.` : "Selected finish not shown in preview. The image is the closest representative product view."}</p>
+              <p>{preview.isExact ? `${preview.viewLabel}. Final product details remain subject to project confirmation.` : "The selected canopy colour, frame finish or edge treatment is represented by the closest model-specific product view."}</p>
             </div>
             <div className="customizer-code-block">
               <span>Configuration code</span>
@@ -271,6 +271,7 @@ export function ParasolConfigurator() {
                 <OptionPicker
                   group={meta.group}
                   family={model.family}
+                  modelId={model.id}
                   value={configuration[meta.group]}
                   swatches={meta.swatches}
                   onSelect={(option) => selectOption(meta.group, option)}
@@ -342,12 +343,14 @@ export function ParasolConfigurator() {
 function OptionPicker({
   group,
   family,
+  modelId,
   value,
   swatches,
   onSelect,
 }: {
   group: ConfigOptionGroup;
   family: "CP" | "CL" | "LF";
+  modelId: string;
   value: string;
   swatches?: boolean;
   onSelect: (option: ConfigOption) => void;
@@ -356,32 +359,34 @@ function OptionPicker({
     <fieldset>
       <legend>{groupMeta.find((item) => item.group === group)?.title}</legend>
       <div className={swatches ? "customizer-option-grid has-swatches" : "customizer-option-grid"}>
-        {optionGroups[group].map((option) => {
-          const compatible = isOptionCompatible(option, family);
-          return (
-            <label className="customizer-choice" key={option.id} data-disabled={!compatible || undefined}>
-              <input
-                type="radio"
-                name={group}
-                value={option.id}
-                checked={value === option.id}
-                disabled={!compatible}
-                onChange={() => onSelect(option)}
-              />
-              <span className="customizer-card-media">
-                <Image src={option.visual.src} alt={option.visual.alt} fill sizes="(max-width: 767px) 100vw, 260px" />
-                {swatches && (
-                  <span className="customizer-choice-swatch" style={{ "--swatch": option.swatch } as CSSProperties} aria-hidden="true" />
-                )}
-                <span className="customizer-option-check"><Check size={14} weight="bold" aria-hidden="true" /></span>
-              </span>
-              <span className="customizer-choice-copy">
-                <strong>{option.label}</strong>
-                <small>{compatible ? option.classification : `Not available for ${familyLabel(family)}`}</small>
-              </span>
-            </label>
-          );
-        })}
+        {optionGroups[group]
+          .filter((option) => !option.appliesToModels || option.appliesToModels.includes(modelId))
+          .map((option) => {
+            const compatible = isOptionCompatible(option, family, modelId);
+            return (
+              <label className="customizer-choice" key={option.id} data-disabled={!compatible || undefined}>
+                <input
+                  type="radio"
+                  name={group}
+                  value={option.id}
+                  checked={value === option.id}
+                  disabled={!compatible}
+                  onChange={() => onSelect(option)}
+                />
+                <span className="customizer-card-media">
+                  <Image src={option.visual.src} alt={option.visual.alt} fill sizes="(max-width: 767px) 100vw, 260px" />
+                  {swatches && (
+                    <span className="customizer-choice-swatch" style={{ "--swatch": option.swatch } as CSSProperties} aria-hidden="true" />
+                  )}
+                  <span className="customizer-option-check"><Check size={14} weight="bold" aria-hidden="true" /></span>
+                </span>
+                <span className="customizer-choice-copy">
+                  <strong>{option.label}</strong>
+                  <small>{compatible ? option.classification : `Not available for ${familyLabel(family)}`}</small>
+                </span>
+              </label>
+            );
+          })}
       </div>
       {getOption(group, value).note && <p className="customizer-selection-note"><Info size={16} weight="bold" aria-hidden="true" /> {getOption(group, value).note}</p>}
     </fieldset>

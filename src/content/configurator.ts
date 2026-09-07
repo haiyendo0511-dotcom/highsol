@@ -1,5 +1,22 @@
 export type ParasolFamily = "CP" | "CL" | "LF";
 
+export type StandardCanopyColorId =
+  | "warm-ivory"
+  | "sand"
+  | "taupe"
+  | "forest-green"
+  | "deep-navy";
+
+export type PatternCanopyColorId =
+  | "white-navy-stripe"
+  | "white-green-stripe"
+  | "white-navy-horizontal-stripe"
+  | "white-green-horizontal-stripe";
+
+export type RenderedCanopyColorId = StandardCanopyColorId | PatternCanopyColorId;
+
+export type CanopyColorId = RenderedCanopyColorId | "project-custom";
+
 export type ConfigOptionGroup =
   | "fabric"
   | "canopyColor"
@@ -19,6 +36,7 @@ export type ConfigOption = {
   label: string;
   code: string;
   appliesTo: ParasolFamily[];
+  appliesToModels?: string[];
   classification: "Standard" | "Premium" | "Decorative" | "Project" | "Custom" | "Engineered";
   visual: ConfigVisual;
   note?: string;
@@ -43,6 +61,7 @@ export type ParasolModel = {
     alt: string;
     viewLabel: string;
   };
+  colorways: Record<StandardCanopyColorId, ConfigVisual> & Partial<Record<PatternCanopyColorId, ConfigVisual>>;
   cardVisual: ConfigVisual;
   defaults: Pick<
     ParasolConfiguration,
@@ -54,7 +73,7 @@ export type ParasolConfiguration = {
   modelId: string;
   quantity: number;
   fabric: string;
-  canopyColor: string;
+  canopyColor: CanopyColorId;
   edge: string;
   frameFinish: string;
   mounting: string;
@@ -95,6 +114,61 @@ const optionVisual = (group: string, id: string, alt: string): ConfigVisual => (
   alt,
 });
 
+export const standardCanopyColorIds: StandardCanopyColorId[] = [
+  "warm-ivory",
+  "sand",
+  "taupe",
+  "forest-green",
+  "deep-navy",
+];
+
+export const patternCanopyColorIds: PatternCanopyColorId[] = [
+  "white-navy-stripe",
+  "white-green-stripe",
+  "white-navy-horizontal-stripe",
+  "white-green-horizontal-stripe",
+];
+
+const canopyColorLabels: Record<RenderedCanopyColorId, string> = {
+  "warm-ivory": "warm ivory",
+  sand: "sand",
+  taupe: "taupe",
+  "forest-green": "forest green",
+  "deep-navy": "deep navy",
+  "white-navy-stripe": "wide white and navy stripe",
+  "white-green-stripe": "wide white and green stripe",
+  "white-navy-horizontal-stripe": "fine white and navy horizontal stripe",
+  "white-green-horizontal-stripe": "fine white and green horizontal stripe",
+};
+
+const productColorwayVisual = (
+  modelSlug: string,
+  modelName: string,
+  color: RenderedCanopyColorId,
+): ConfigVisual => ({
+  src: `/images/configurator/products/colorways/${modelSlug}/${color}.png`,
+  alt: `${modelName} parasol in ${canopyColorLabels[color]} with its source frame and base finish`,
+});
+
+const productColorways = (
+  modelSlug: string,
+  modelName: string,
+): Record<StandardCanopyColorId, ConfigVisual> => ({
+  "warm-ivory": productColorwayVisual(modelSlug, modelName, "warm-ivory"),
+  sand: productColorwayVisual(modelSlug, modelName, "sand"),
+  taupe: productColorwayVisual(modelSlug, modelName, "taupe"),
+  "forest-green": productColorwayVisual(modelSlug, modelName, "forest-green"),
+  "deep-navy": productColorwayVisual(modelSlug, modelName, "deep-navy"),
+});
+
+export function isStandardCanopyColorId(color: string): color is StandardCanopyColorId {
+  return standardCanopyColorIds.includes(color as StandardCanopyColorId);
+}
+
+export function isRenderedCanopyColorId(color: string): color is RenderedCanopyColorId {
+  return isStandardCanopyColorId(color) || patternCanopyColorIds.includes(color as PatternCanopyColorId);
+}
+
 export const comfortOptions: ComfortOption[] = [
   { key: "heater", label: "Heater provision", description: "Requires electrical and engineering review.", visual: optionVisual("accessories", "heater", "Compact radiant heater mounted beneath a hospitality parasol") },
   { key: "rainGutter", label: "Rain gutter", description: "Available for cantilever and large-format projects.", visual: optionVisual("accessories", "rain-gutter", "Integrated rain gutter detail between adjoining parasol canopies") },
@@ -115,7 +189,12 @@ export const optionGroups: Record<ConfigOptionGroup, ConfigOption[]> = {
     { id: "warm-ivory", label: "Warm ivory", code: "IV", appliesTo: allFamilies, classification: "Standard", visual: optionVisual("canopy-color", "warm-ivory", "Warm ivory outdoor fabric swatch"), swatch: "#e9e0cf", note: "Physical swatch approval." },
     { id: "sand", label: "Sand", code: "SD", appliesTo: allFamilies, classification: "Standard", visual: optionVisual("canopy-color", "sand", "Sand-coloured outdoor fabric swatch"), swatch: "#c9b18a", note: "Physical swatch approval." },
     { id: "taupe", label: "Taupe", code: "TP", appliesTo: allFamilies, classification: "Standard", visual: optionVisual("canopy-color", "taupe", "Taupe outdoor fabric swatch"), swatch: "#9f8e78", note: "Physical swatch approval." },
-    { id: "forest-green", label: "Forest green", code: "FG", appliesTo: allFamilies, classification: "Premium", visual: optionVisual("canopy-color", "forest-green", "Forest green outdoor fabric swatch"), swatch: "#314f43", requiresApproval: true, note: "Physical swatch approval." },
+    { id: "forest-green", label: "Forest green", code: "FG", appliesTo: allFamilies, classification: "Standard", visual: optionVisual("canopy-color", "forest-green", "Forest green outdoor fabric swatch"), swatch: "#314f43", note: "Physical swatch approval." },
+    { id: "deep-navy", label: "Deep navy", code: "NV", appliesTo: allFamilies, classification: "Standard", visual: optionVisual("canopy-color", "deep-navy", "Deep navy outdoor fabric swatch"), swatch: "#23374d", note: "Physical swatch approval." },
+    { id: "white-navy-stripe", label: "Wide white / navy stripe", code: "WNS", appliesTo: ["CP"], appliesToModels: ["HS-CD-30SQ"], classification: "Decorative", visual: optionVisual("canopy-color", "warm-ivory", "Outdoor fabric swatch for the wide white and navy stripe option"), swatch: "repeating-conic-gradient(from 45deg, #f4f1e9 0deg 45deg, #23374d 45deg 90deg)", requiresApproval: true, note: "Stripe scale and panel alignment require physical strike-off approval." },
+    { id: "white-green-stripe", label: "Wide white / green stripe", code: "WGS", appliesTo: ["CP"], appliesToModels: ["HS-CD-30SQ"], classification: "Decorative", visual: optionVisual("canopy-color", "warm-ivory", "Outdoor fabric swatch for the wide white and green stripe option"), swatch: "repeating-conic-gradient(from 45deg, #f4f1e9 0deg 45deg, #314f43 45deg 90deg)", requiresApproval: true, note: "Stripe scale and panel alignment require physical strike-off approval." },
+    { id: "white-navy-horizontal-stripe", label: "Fine white / navy stripe", code: "WNH", appliesTo: ["CP"], appliesToModels: ["HS-CD-30SQ"], classification: "Decorative", visual: optionVisual("canopy-color", "warm-ivory", "Outdoor fabric swatch for the fine horizontal white and navy stripe option"), swatch: "repeating-linear-gradient(0deg, #f4f1e9 0 3px, #23374d 3px 6px)", requiresApproval: true, note: "Stripe scale and alignment require physical strike-off approval." },
+    { id: "white-green-horizontal-stripe", label: "Fine white / green stripe", code: "WGH", appliesTo: ["CP"], appliesToModels: ["HS-CD-30SQ"], classification: "Decorative", visual: optionVisual("canopy-color", "warm-ivory", "Outdoor fabric swatch for the fine horizontal white and green stripe option"), swatch: "repeating-linear-gradient(0deg, #f4f1e9 0 3px, #314f43 3px 6px)", requiresApproval: true, note: "Stripe scale and alignment require physical strike-off approval." },
     { id: "project-custom", label: "Project custom colour", code: "PC", appliesTo: allFamilies, classification: "Custom", visual: optionVisual("canopy-color", "project-custom", "Fan of custom project colour fabric samples"), swatch: "linear-gradient(135deg, #d6b875 0 33%, #2a706a 33% 66%, #875d4c 66%)", requiresApproval: true, note: "Colour tolerance must be agreed." },
   ],
   edge: [
@@ -165,8 +244,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Push-up",
     offerType: "Standard",
     application: "Dining tables, compact pool decks and balconies",
-    preview: { src: "/images/packshots/center-pole-classic/01-three-quarter.png", alt: "Representative straight-edge center-pole parasol in warm ivory and dark bronze", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cp-25sq", "Center Pole Classic 2.5 Square hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cp-25sq/warm-ivory.png", alt: "Center Pole Classic 2.5 Square parasol in warm ivory and dark bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cp-25sq", "Center Pole Classic 2.5 Square"),
+    cardVisual: productColorwayVisual("hs-cp-25sq", "Center Pole Classic 2.5 Square", "warm-ivory"),
     defaults: { fabric: "solution-acrylic", canopyColor: "warm-ivory", edge: "straight", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -180,8 +260,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Push-up or pulley",
     offerType: "Standard",
     application: "Dining, pool decks and beach clubs",
-    preview: { src: "/images/packshots/center-pole-classic/01-three-quarter.png", alt: "Representative straight-edge center-pole parasol in warm ivory and dark bronze", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cp-30sq", "Center Pole Classic 3.0 Square hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cp-30sq/warm-ivory.png", alt: "Center Pole Classic 3.0 Square parasol in warm ivory and dark bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cp-30sq", "Center Pole Classic 3.0 Square"),
+    cardVisual: productColorwayVisual("hs-cp-30sq", "Center Pole Classic 3.0 Square", "warm-ivory"),
     defaults: { fabric: "solution-acrylic", canopyColor: "warm-ivory", edge: "straight", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -195,8 +276,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Push-up or pulley",
     offerType: "Standard",
     application: "Dining, pool decks and repeated resort programs",
-    preview: { src: "/images/packshots/center-pole-classic/01-three-quarter.png", alt: "Representative center-pole parasol; selected octagonal shape is not shown exactly", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cp-30oc", "Center Pole Classic 3.0 Octagonal hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cp-30oc/warm-ivory.png", alt: "Center Pole Classic 3.0 Octagonal parasol in warm ivory and dark bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cp-30oc", "Center Pole Classic 3.0 Octagonal"),
+    cardVisual: productColorwayVisual("hs-cp-30oc", "Center Pole Classic 3.0 Octagonal", "warm-ivory"),
     defaults: { fabric: "solution-acrylic", canopyColor: "warm-ivory", edge: "straight", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -210,8 +292,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Pulley",
     offerType: "Standard",
     application: "Pool decks, beach clubs and lounge settings",
-    preview: { src: "/images/packshots/center-pole-classic/01-three-quarter.png", alt: "Representative center-pole parasol; selected octagonal shape is not shown exactly", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cp-35oc", "Center Pole Classic 3.5 Octagonal hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cp-35oc/warm-ivory.png", alt: "Center Pole Classic 3.5 Octagonal parasol in warm ivory and dark bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cp-35oc", "Center Pole Classic 3.5 Octagonal"),
+    cardVisual: productColorwayVisual("hs-cp-35oc", "Center Pole Classic 3.5 Octagonal", "warm-ivory"),
     defaults: { fabric: "solution-acrylic", canopyColor: "warm-ivory", edge: "straight", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -225,8 +308,15 @@ export const parasolModels: ParasolModel[] = [
     opening: "Push-up or pulley",
     offerType: "Project custom",
     application: "Boutique resorts, branded pool clubs and villas",
-    preview: { src: "/images/packshots/scalloped-center-pole/01-three-quarter.jpg", alt: "Representative scalloped center-pole parasol in warm ivory and dark bronze", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cd-30sq", "Center Pole Decorative 3.0 Square scalloped parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cd-30sq/warm-ivory.png", alt: "Center Pole Decorative 3.0 Square scalloped parasol in warm ivory and dark bronze", viewLabel: "Configured product view" },
+    colorways: {
+      ...productColorways("hs-cd-30sq", "Center Pole Decorative 3.0 Square"),
+      "white-navy-stripe": productColorwayVisual("hs-cd-30sq", "Center Pole Decorative 3.0 Square", "white-navy-stripe"),
+      "white-green-stripe": productColorwayVisual("hs-cd-30sq", "Center Pole Decorative 3.0 Square", "white-green-stripe"),
+      "white-navy-horizontal-stripe": productColorwayVisual("hs-cd-30sq", "Center Pole Decorative 3.0 Square", "white-navy-horizontal-stripe"),
+      "white-green-horizontal-stripe": productColorwayVisual("hs-cd-30sq", "Center Pole Decorative 3.0 Square", "white-green-horizontal-stripe"),
+    },
+    cardVisual: productColorwayVisual("hs-cd-30sq", "Center Pole Decorative 3.0 Square", "warm-ivory"),
     defaults: { fabric: "solution-acrylic", canopyColor: "warm-ivory", edge: "scalloped", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -240,8 +330,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Crank assisted",
     offerType: "Standard",
     application: "Lounges, pool edges and outdoor dining",
-    preview: { src: "/images/packshots/square-cantilever/01-three-quarter.jpg", alt: "Representative square cantilever parasol in taupe and dark bronze", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cl-30sq", "Cantilever Premium 3.0 Square hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cl-30sq/taupe.png", alt: "Cantilever Premium 3.0 Square parasol in taupe and dark bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cl-30sq", "Cantilever Premium 3.0 Square"),
+    cardVisual: productColorwayVisual("hs-cl-30sq", "Cantilever Premium 3.0 Square", "taupe"),
     defaults: { fabric: "solution-acrylic", canopyColor: "taupe", edge: "straight", frameFinish: "dark-bronze", mounting: "weighted-base", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -255,8 +346,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Crank assisted",
     offerType: "Project custom",
     application: "Large lounges, terraces and hospitality dining",
-    preview: { src: "/images/packshots/square-cantilever/01-three-quarter.jpg", alt: "Representative square cantilever parasol in taupe and dark bronze", viewLabel: "Representative view" },
-    cardVisual: optionVisual("models", "hs-cl-35sq", "Cantilever Premium 3.5 Square hospitality parasol"),
+    preview: { src: "/images/configurator/products/colorways/hs-cl-35sq/taupe.png", alt: "Cantilever Premium 3.5 Square parasol in taupe and charcoal bronze", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-cl-35sq", "Cantilever Premium 3.5 Square"),
+    cardVisual: productColorwayVisual("hs-cl-35sq", "Cantilever Premium 3.5 Square", "taupe"),
     defaults: { fabric: "solution-acrylic", canopyColor: "taupe", edge: "straight", frameFinish: "dark-bronze", mounting: "engineered-footing", lighting: "no-lighting", branding: "no-branding" },
   },
   {
@@ -270,8 +362,9 @@ export const parasolModels: ParasolModel[] = [
     opening: "Project defined",
     offerType: "Engineered project",
     application: "Large terraces, resort programs and event areas",
-    preview: { src: "/images/packshots/dual-canopy-cantilever/01-three-quarter.jpg", alt: "Representative dual-canopy large-format parasol system", viewLabel: "Representative project view" },
-    cardVisual: optionVisual("models", "hs-lf-custom", "Representative large-format dual-canopy parasol system"),
+    preview: { src: "/images/configurator/products/colorways/hs-lf-custom/warm-ivory.png", alt: "Engineered large-format dual-canopy parasol system in warm ivory and charcoal", viewLabel: "Configured product view" },
+    colorways: productColorways("hs-lf-custom", "Large Format Project"),
+    cardVisual: productColorwayVisual("hs-lf-custom", "Large Format Project", "warm-ivory"),
     defaults: { fabric: "pvc-membrane", canopyColor: "warm-ivory", edge: "straight", frameFinish: "charcoal", mounting: "engineered-footing", lighting: "no-lighting", branding: "no-branding" },
   },
 ];
@@ -286,8 +379,8 @@ export function getOption(group: ConfigOptionGroup, optionId: string) {
   return optionGroups[group].find((option) => option.id === optionId) ?? optionGroups[group][0];
 }
 
-export function isOptionCompatible(option: ConfigOption, family: ParasolFamily) {
-  return option.appliesTo.includes(family);
+export function isOptionCompatible(option: ConfigOption, family: ParasolFamily, modelId?: string) {
+  return option.appliesTo.includes(family) && (!option.appliesToModels || Boolean(modelId && option.appliesToModels.includes(modelId)));
 }
 
 export function createDefaultConfiguration(modelId = defaultModelId): ParasolConfiguration {
@@ -310,7 +403,7 @@ export function reconcileConfiguration(current: ParasolConfiguration, nextModelI
   const keys: ConfigOptionGroup[] = ["fabric", "canopyColor", "edge", "frameFinish", "mounting", "lighting", "branding"];
   for (const key of keys) {
     const selected = getOption(key, current[key]);
-    if (isOptionCompatible(selected, model.family)) next[key] = current[key];
+    if (isOptionCompatible(selected, model.family, model.id)) Object.assign(next, { [key]: current[key] });
   }
   next.quantity = current.quantity;
   next.heater = current.heater;
@@ -354,34 +447,26 @@ export function getConfigurationCode(configuration: ParasolConfiguration) {
 
 export function getPreviewAsset(configuration: ParasolConfiguration): PreviewAsset {
   const model = getModel(configuration.modelId);
-  let preview = model.preview;
-  let exactEdge = configuration.edge === model.defaults.edge;
+  const defaultColor = isRenderedCanopyColorId(model.defaults.canopyColor)
+    ? model.defaults.canopyColor
+    : "warm-ivory";
+  const selectedColor = isRenderedCanopyColorId(configuration.canopyColor)
+    ? configuration.canopyColor
+    : undefined;
+  const selectedColorway = selectedColor ? model.colorways[selectedColor] : undefined;
+  const colorway = selectedColorway ?? model.colorways[defaultColor] ?? model.preview;
+  const isExact =
+    selectedColorway !== undefined
+    && configuration.edge === model.defaults.edge
+    && configuration.frameFinish === model.defaults.frameFinish;
 
-  if (model.family === "CP" && configuration.edge === "scalloped") {
-    preview = {
-      src: "/images/packshots/scalloped-center-pole/01-three-quarter.jpg",
-      alt: "Representative scalloped center-pole parasol in warm ivory and dark bronze",
-      viewLabel: "Scalloped canopy view",
-    };
-    exactEdge = true;
-  } else if (model.family === "CP" && configuration.edge === "straight") {
-    preview = {
-      src: "/images/packshots/center-pole-classic/01-three-quarter.png",
-      alt: "Representative straight-edge center-pole parasol in warm ivory and dark bronze",
-      viewLabel: "Straight canopy view",
-    };
-    exactEdge = true;
-  }
-
-  const visualDefaults =
-    model.family === "CP"
-      ? configuration.canopyColor === "warm-ivory" && configuration.frameFinish === "dark-bronze"
-      : model.family === "CL"
-        ? configuration.canopyColor === "taupe" && configuration.frameFinish === "dark-bronze"
-        : configuration.canopyColor === "warm-ivory" && configuration.frameFinish === "charcoal";
-
-  const exactShape = model.shape === "Square" || model.id === "HS-CD-30SQ" || model.family !== "CP";
-  return { ...preview, isExact: visualDefaults && exactEdge && exactShape };
+  return {
+    ...colorway,
+    viewLabel: selectedColorway && selectedColor
+      ? `${canopyColorLabels[selectedColor]} configured product view`
+      : `${canopyColorLabels[defaultColor]} representative product view`,
+    isExact,
+  };
 }
 
 export function getConfigurationSummary(configuration: ParasolConfiguration) {

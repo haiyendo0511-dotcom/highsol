@@ -14,6 +14,29 @@ const viewports = [
   { name: "desktop", width: 1440, height: 1000 },
   { name: "mobile", width: 390, height: 844 },
 ];
+const standardColorways = [
+  { id: "warm-ivory", code: "IV" },
+  { id: "sand", code: "SD" },
+  { id: "taupe", code: "TP" },
+  { id: "forest-green", code: "FG" },
+  { id: "deep-navy", code: "NV" },
+];
+const decorativeStripeColorways = [
+  { id: "white-navy-stripe", code: "WNS" },
+  { id: "white-green-stripe", code: "WGS" },
+  { id: "white-navy-horizontal-stripe", code: "WNH" },
+  { id: "white-green-horizontal-stripe", code: "WGH" },
+];
+const configuratorModels = [
+  { id: "HS-CP-25SQ", slug: "hs-cp-25sq", defaultColor: "warm-ivory" },
+  { id: "HS-CP-30SQ", slug: "hs-cp-30sq", defaultColor: "warm-ivory" },
+  { id: "HS-CP-30OC", slug: "hs-cp-30oc", defaultColor: "warm-ivory" },
+  { id: "HS-CP-35OC", slug: "hs-cp-35oc", defaultColor: "warm-ivory" },
+  { id: "HS-CD-30SQ", slug: "hs-cd-30sq", defaultColor: "warm-ivory" },
+  { id: "HS-CL-30SQ", slug: "hs-cl-30sq", defaultColor: "taupe" },
+  { id: "HS-CL-35SQ", slug: "hs-cl-35sq", defaultColor: "taupe" },
+  { id: "HS-LF-CUSTOM", slug: "hs-lf-custom", defaultColor: "warm-ivory" },
+];
 
 await mkdir(outputDir, { recursive: true });
 const browser = await chromium.launch({
@@ -114,12 +137,12 @@ for (const viewport of viewports) {
       });
       if (
         cardImageState.models !== 8 ||
-        cardImageState.choices !== 33 ||
+        cardImageState.choices !== 34 ||
         cardImageState.service !== 5 ||
-        cardImageState.total !== 46
+        cardImageState.total !== 47
       ) {
         failures.push(
-          `customize ${viewport.name} image-card counts were ${cardImageState.models}/${cardImageState.choices}/${cardImageState.service} instead of 8/33/5`,
+          `customize ${viewport.name} image-card counts were ${cardImageState.models}/${cardImageState.choices}/${cardImageState.service} instead of 8/34/5`,
         );
       }
       if (cardImageState.missingImages || cardImageState.missingAlt || cardImageState.brokenImages) {
@@ -159,6 +182,147 @@ for (const viewport of viewports) {
       failures.push("Configurator code did not update after a finish selection");
     }
 
+    for (const classificationColor of ["forest-green", "deep-navy"]) {
+      const classification = await page
+        .locator(`label:has(input[name="canopyColor"][value="${classificationColor}"]) .customizer-choice-copy small`)
+        .textContent();
+      if (classification?.trim() !== "Standard") {
+        failures.push(`${classificationColor} was classified as ${classification?.trim() || "unknown"} instead of Standard`);
+      }
+    }
+
+    for (const testModel of configuratorModels) {
+      await page.goto(baseUrl + `/customize?model=${testModel.id}`, { waitUntil: "domcontentloaded" });
+      await page.waitForFunction(
+        (modelId) => document.querySelector(`input[name="model"][value="${modelId}"]`)?.checked,
+        testModel.id,
+      );
+
+      for (const color of standardColorways) {
+        await page.locator(`label:has(input[name="canopyColor"][value="${color.id}"])`).click();
+        const expectedPath = `/images/configurator/products/colorways/${testModel.slug}/${color.id}.png`;
+        await page.waitForFunction(
+          (path) =>
+            document.querySelectorAll(".customizer-preview-image img").length === 1
+            && decodeURIComponent(document.querySelector(".customizer-preview-image img")?.getAttribute("src") || "").includes(path),
+          expectedPath,
+        );
+        const code = await page.locator(".customizer-code-block strong").textContent();
+        if (!code?.startsWith(testModel.id) || !code.includes(color.code)) {
+          failures.push(`${testModel.id} ${color.id} produced unexpected code ${code}`);
+        }
+        const notice = await page.locator(".customizer-preview-note p").textContent();
+        if (!notice?.includes("Final product details remain subject to project confirmation.")) {
+          failures.push(`${testModel.id} ${color.id} was not marked as an exact model/color/frame/edge preview`);
+        }
+      }
+
+      await page.locator('label:has(input[name="canopyColor"][value="project-custom"])').click();
+      const fallbackPath = `/images/configurator/products/colorways/${testModel.slug}/${testModel.defaultColor}.png`;
+      await page.waitForFunction(
+        (path) =>
+          document.querySelectorAll(".customizer-preview-image img").length === 1
+          && decodeURIComponent(document.querySelector(".customizer-preview-image img")?.getAttribute("src") || "").includes(path),
+        fallbackPath,
+      );
+      const customCode = await page.locator(".customizer-code-block strong").textContent();
+      const customNotice = await page.locator(".customizer-preview-note p").textContent();
+      if (!customCode?.includes("PC") || !customNotice?.includes("closest model-specific product view")) {
+        failures.push(`${testModel.id} project-custom did not use the default-color representative preview`);
+      }
+    }
+
+    await page.goto(baseUrl + "/customize?model=HS-CD-30SQ", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => document.querySelector('input[name="model"][value="HS-CD-30SQ"]')?.checked);
+    const canopySelectorProductRenders = await page
+      .locator('.customizer-group:has(input[name="canopyColor"]) .customizer-card-media img[src*="/products/colorways/"]')
+      .count();
+    if (canopySelectorProductRenders !== 0) {
+      failures.push(`Canopy selector displayed ${canopySelectorProductRenders} configured product renders instead of swatch imagery`);
+    }
+    for (const stripe of decorativeStripeColorways) {
+      const stripeChoice = page.locator(`label:has(input[name="canopyColor"][value="${stripe.id}"])`);
+      if (await stripeChoice.count() !== 1) {
+        failures.push(`HS-CD-30SQ ${stripe.id} was not available`);
+        continue;
+      }
+      await stripeChoice.click();
+      const expectedPath = `/images/configurator/products/colorways/hs-cd-30sq/${stripe.id}.png`;
+      await page.waitForFunction(
+        (path) =>
+          document.querySelectorAll(".customizer-preview-image img").length === 1
+          && decodeURIComponent(document.querySelector(".customizer-preview-image img")?.getAttribute("src") || "").includes(path),
+        expectedPath,
+      );
+      const code = await page.locator(".customizer-code-block strong").textContent();
+      const classification = await stripeChoice.locator(".customizer-choice-copy small").textContent();
+      const notice = await page.locator(".customizer-preview-note p").textContent();
+      if (!code?.startsWith("HS-CD-30SQ") || !code.includes(stripe.code)) {
+        failures.push(`HS-CD-30SQ ${stripe.id} produced unexpected code ${code}`);
+      }
+      if (classification?.trim() !== "Decorative") {
+        failures.push(`HS-CD-30SQ ${stripe.id} was classified as ${classification?.trim() || "unknown"}`);
+      }
+      if (!notice?.includes("Final product details remain subject to project confirmation.")) {
+        failures.push(`HS-CD-30SQ ${stripe.id} was not marked as an exact preview`);
+      }
+    }
+    await page.locator('label:has(input[name="model"][value="HS-CP-30SQ"])').click();
+    await page.waitForFunction(() => document.querySelector('input[name="model"][value="HS-CP-30SQ"]')?.checked);
+    const stripeCompatibilityState = await page.evaluate((stripeIds) => ({
+      stripeChoicesPresent: stripeIds.some((stripeId) =>
+        Boolean(document.querySelector(`input[name="canopyColor"][value="${stripeId}"]`)),
+      ),
+      warmIvoryChecked: document.querySelector('input[name="canopyColor"][value="warm-ivory"]')?.checked,
+    }), decorativeStripeColorways.map(({ id }) => id));
+    if (stripeCompatibilityState.stripeChoicesPresent || !stripeCompatibilityState.warmIvoryChecked) {
+      failures.push("HS-CD-30SQ stripe choices were not hidden and reconciled after switching models");
+    }
+
+    await page.goto(baseUrl + "/customize?model=HS-CL-30SQ", { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => document.querySelector('input[name="model"][value="HS-CL-30SQ"]')?.checked);
+    await page.locator('label:has(input[name="model"][value="HS-CP-30SQ"])').click();
+    await page.waitForFunction(() => document.querySelector('input[name="model"][value="HS-CP-30SQ"]')?.checked);
+    await page.locator('label:has(input[name="canopyColor"][value="deep-navy"])').click();
+    const exactPreviewPath = "/images/configurator/products/colorways/hs-cp-30sq/deep-navy.png";
+    await page.waitForFunction(
+      (path) =>
+        Array.from(document.querySelectorAll(".customizer-preview-image img")).some((image) =>
+          decodeURIComponent(image.getAttribute("src") || "").includes(path),
+        ),
+      exactPreviewPath,
+    );
+    await page.locator('input[name="frameFinish"][value="charcoal"]').evaluate((input) => {
+      const details = input.closest("details");
+      if (details) details.open = true;
+    });
+    await page.locator('label:has(input[name="frameFinish"][value="charcoal"])').click();
+    let representativeState = await page.evaluate((path) => ({
+      sameImage: Array.from(document.querySelectorAll(".customizer-preview-image img")).some((image) =>
+        decodeURIComponent(image.getAttribute("src") || "").includes(path),
+      ),
+      representative: document.querySelector(".customizer-preview-note p")?.textContent?.includes("closest model-specific product view"),
+    }), exactPreviewPath);
+    if (!representativeState.sameImage || !representativeState.representative) {
+      failures.push("Non-default frame selection did not retain the color image with a representative notice");
+    }
+    await page.locator('label:has(input[name="frameFinish"][value="dark-bronze"])').click();
+    await page.locator('input[name="edge"][value="straight-valance"]').evaluate((input) => {
+      const details = input.closest("details");
+      if (details) details.open = true;
+    });
+    await page.locator('label:has(input[name="edge"][value="straight-valance"])').click();
+    representativeState = await page.evaluate((path) => ({
+      sameImage: Array.from(document.querySelectorAll(".customizer-preview-image img")).some((image) =>
+        decodeURIComponent(image.getAttribute("src") || "").includes(path),
+      ),
+      representative: document.querySelector(".customizer-preview-note p")?.textContent?.includes("closest model-specific product view"),
+    }), exactPreviewPath);
+    if (!representativeState.sameImage || !representativeState.representative) {
+      failures.push("Non-default edge selection did not retain the color image with a representative notice");
+    }
+
+    await page.goto(baseUrl + "/customize?model=HS-LF-CUSTOM", { waitUntil: "domcontentloaded" });
     await page.locator('label:has(input[name="model"][value="HS-LF-CUSTOM"])').click();
     const compatibilityState = await page.evaluate(() => ({
       largeFormatChecked: document.querySelector('input[name="model"][value="HS-LF-CUSTOM"]')?.checked,
